@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: tive-webhook-receiver
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      # Exactly-once: each message has a unique ID; broker rejects duplicates
+      acks: all
+      enable-idempotence: true
+      retries: 3
+      properties:
+        max.in.flight.requests.per.connection: 1
+        delivery.timeout.ms: 30000
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+server:
+  port: 8080
+
+# Tive secrets (injected via environment variables in production)
+tive:
+  webhook:
+    # Header sent by Tive for authentication: X-Tive-Client-Id
+    client-id: ${TIVE_CLIENT_ID:my-client-id}
+    # Expected value of the X-Tive-Client-Secret header
+    client-secret: ${TIVE_CLIENT_SECRET:my-client-secret}
+    # Idempotency key TTL in Redis (seconds)
+    idempotency-ttl-seconds: 86400
+
+kafka:
+  topics:
+    positions: tive.positions
+    alerts: tive.alerts
+    sensors: tive.sensors
+    dlq: tive.dlq
+
+# Metrics exposed for Prometheus
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
