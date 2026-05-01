@@ -1,61 +1,61 @@
 # tive-webhook-receiver
 
-Serviço Spring Boot para ingestão em tempo real de eventos dos trackers 5G [Tive](https://www.tive.com).
+Spring Boot service for real-time ingestion of events from [Tive](https://www.tive.com) 5G trackers.
 
-## Arquitetura
+## Architecture
 
 ```
 Tive Platform
-     │
-     │  HTTP POST (webhook)
-     │  X-Tive-Client-Id / X-Tive-Client-Secret
-     ▼
-WebhookAuthenticationFilter      ← valida credenciais, injeta correlationId no MDC
-     │
-     ▼
-TiveWebhookController            ← aceita o payload, responde 200 IMEDIATO
-     │
-IdempotencyService (Redis)       ← descarta duplicatas (Tive re-entrega em falhas)
-     │
-TiveEventPublisher               ← publica no Kafka de forma assíncrona
-     │
-     ├─ tive.positions  (GPS + sensores)   key = trackerId
-     ├─ tive.alerts     (choque, temp...)  key = trackerId
-     └─ tive.dlq        (falhas)
+     |
+     |  HTTP POST (webhook)
+     |  X-Tive-Client-Id / X-Tive-Client-Secret
+     v
+WebhookAuthenticationFilter      <- validates credentials, injects correlationId into MDC
+     |
+     v
+TiveWebhookController            <- accepts payload, responds 200 IMMEDIATELY
+     |
+IdempotencyService (Redis)       <- drops duplicates (Tive re-delivers on failures)
+     |
+TiveEventPublisher               <- publishes to Kafka asynchronously
+     |
+     |- tive.positions  (GPS + sensors)  key = trackerId
+     |- tive.alerts     (shock, temp...) key = trackerId
+     \- tive.dlq        (failures)
 ```
 
-### Por que responder 200 antes do Kafka confirmar?
+### Why respond 200 before Kafka confirms?
 
-A Tive tem timeout curto nas entregas. Se o endpoint demorar, ela re-entrega o webhook — causando storm de duplicatas. O controller responde instantaneamente; falhas no Kafka são tratadas no callback assíncrono (vai para DLQ e um reprocessador recupera depois).
+Tive has a short delivery timeout. If the endpoint takes too long, it re-delivers the webhook, causing a duplicate storm. The controller responds immediately; Kafka failures are handled in the asynchronous callback (sent to DLQ and recovered later by a reprocessor).
 
-### Idempotência
+### Idempotency
 
-A Tive tenta re-entregar webhooks que falham. O `IdempotencyService` usa `SET NX EX` no Redis (operação atômica) para garantir que cada evento seja processado exatamente uma vez, mesmo recebendo duplicatas.
+Tive attempts to re-deliver failed webhooks. `IdempotencyService` uses `SET NX EX` in Redis (atomic operation) to ensure each event is processed exactly once, even when duplicates are received.
 
 ## Endpoints
 
-| Método | Path | Descrição |
-|--------|------|-----------|
-| POST | `/webhooks/tive/positions` | Dados de GPS e sensores |
-| POST | `/webhooks/tive/alerts` | Alertas (choque, temperatura, geofence) |
-| GET  | `/webhooks/tive/health` | Health check para a Tive validar o endpoint |
-| GET  | `/actuator/prometheus` | Métricas para Prometheus/Grafana |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/webhooks/tive/positions` | GPS and sensor data |
+| POST | `/webhooks/tive/alerts` | Alerts (shock, temperature, geofence) |
+| GET  | `/webhooks/tive/health` | Health check for Tive to validate the endpoint |
+| GET  | `/actuator/prometheus` | Metrics for Prometheus/Grafana |
 
-## Autenticação
+## Authentication
 
-Headers obrigatórios em todas as requisições:
+Required headers in all requests:
 ```
-X-Tive-Client-Id: <seu-client-id>
-X-Tive-Client-Secret: <seu-client-secret>
+X-Tive-Client-Id: <your-client-id>
+X-Tive-Client-Secret: <your-client-secret>
 ```
 
 ## Quick Start
 
 ```bash
-# Subir Kafka, Redis e a aplicação
+# Start Kafka, Redis, and the application
 docker-compose up -d
 
-# Simular um webhook de posição
+# Simulate a position webhook
 curl -X POST http://localhost:8080/webhooks/tive/positions \
   -H "Content-Type: application/json" \
   -H "X-Tive-Client-Id: my-client-id" \
@@ -69,35 +69,35 @@ curl -X POST http://localhost:8080/webhooks/tive/positions \
     "Battery": { "Percentage": 85.0, "IsCharging": false }
   }'
 
-# Inspecionar mensagens no Kafka
+# Inspect messages in Kafka
 open http://localhost:8090
 ```
 
-## Configuração
+## Configuration
 
-| Variável de ambiente | Padrão | Descrição |
-|---------------------|--------|-----------|
-| `KAFKA_BROKERS` | `localhost:9092` | Bootstrap servers do Kafka |
-| `REDIS_HOST` | `localhost` | Host do Redis |
-| `REDIS_PORT` | `6379` | Porta do Redis |
-| `TIVE_CLIENT_ID` | — | Client ID fornecido pela Tive |
-| `TIVE_CLIENT_SECRET` | — | Secret fornecido pela Tive |
+| Environment variable | Default | Description |
+|----------------------|---------|-------------|
+| `KAFKA_BROKERS` | `localhost:9092` | Kafka bootstrap servers |
+| `REDIS_HOST` | `localhost` | Redis host |
+| `REDIS_PORT` | `6379` | Redis port |
+| `TIVE_CLIENT_ID` | - | Client ID provided by Tive |
+| `TIVE_CLIENT_SECRET` | - | Secret provided by Tive |
 
-## Métricas disponíveis
+## Available metrics
 
-| Métrica | Descrição |
-|---------|-----------|
-| `tive.webhook.received{type=position}` | Posições recebidas |
-| `tive.webhook.received{type=alert}` | Alertas recebidos |
-| `tive.webhook.duplicates` | Eventos descartados por duplicidade |
-| `tive.webhook.published{topic=...}` | Eventos publicados no Kafka |
-| `tive.webhook.publish.failures` | Falhas de publicação (foram para DLQ) |
-| `tive.webhook.latency` | Latência de processamento do webhook |
+| Metric | Description |
+|--------|-------------|
+| `tive.webhook.received{type=position}` | Received positions |
+| `tive.webhook.received{type=alert}` | Received alerts |
+| `tive.webhook.duplicates` | Events dropped due to duplication |
+| `tive.webhook.published{topic=...}` | Events published to Kafka |
+| `tive.webhook.publish.failures` | Publish failures (sent to DLQ) |
+| `tive.webhook.latency` | Webhook processing latency |
 
-## Testes
+## Tests
 
 ```bash
 mvn test
 ```
 
-Os testes usam `@EmbeddedKafka` (sem Docker necessário em CI).
+Tests use `@EmbeddedKafka` (no Docker required in CI).
