@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-import java.time.Instant;
-
 /**
  * Represents the standard payload sent by the Tive Platform in device data webhooks.
  * Unknown fields are ignored to maintain compatibility with future API versions.

@@ -1,5 +1,6 @@
 package com.shiptrack.tive.exception;
 
+import com.shiptrack.tive.controller.TiveWebhookController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * and will generate an event storm. Better to accept, log the error, and investigate.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(assignableTypes = TiveWebhookController.class)
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

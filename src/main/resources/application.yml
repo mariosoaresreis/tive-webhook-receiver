@@ -14,6 +14,11 @@ spring:
         delivery.timeout.ms: 30000
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.shiptrack.tive.model"
 
   data:
     redis:
@@ -33,6 +38,8 @@ tive:
     client-secret: ${TIVE_CLIENT_SECRET:my-client-secret}
     # Idempotency key TTL in Redis (seconds)
     idempotency-ttl-seconds: 86400
+  position-state:
+    consumer-group: ${TIVE_POSITION_STATE_CONSUMER_GROUP:tive-position-state}
 
 kafka:
   topics:
