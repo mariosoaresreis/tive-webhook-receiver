@@ -22,6 +22,25 @@ TiveEventPublisher               <- publishes to Kafka asynchronously
      |- tive.positions  (GPS + sensors)  key = trackerId
      |- tive.alerts     (shock, temp...) key = trackerId
      \- tive.dlq        (failures)
+
+tive.alerts (consumer group: tive-alert-persistence)
+     |
+     v
+TiveAlertsPersistenceConsumer    <- persists alerts for querying/audit
+     |
+     v
+PostgreSQL (Cloud SQL in GCP)
+
+tive.positions (consumer group: tive-position-state)
+     |
+     v
+TivePositionsProjectionConsumer  <- projects latest position per tracker
+     |
+     v
+Redis latest state               <- key tive:tracker:position:{trackerId}
+     |
+     v
+TrackerPositionController        <- GET /trackers/{id}/position
 ```
 
 ### Why respond 200 before Kafka confirms?
@@ -39,6 +58,7 @@ Tive attempts to re-deliver failed webhooks. `IdempotencyService` uses `SET NX E
 | POST | `/webhooks/tive/positions` | GPS and sensor data |
 | POST | `/webhooks/tive/alerts` | Alerts (shock, temperature, geofence) |
 | GET  | `/webhooks/tive/health` | Health check for Tive to validate the endpoint |
+| GET  | `/trackers/{trackerId}/position` | Returns the latest projected position from Redis |
 | GET  | `/actuator/prometheus` | Metrics for Prometheus/Grafana |
 
 ## Authentication
@@ -69,8 +89,11 @@ curl -X POST http://localhost:8080/webhooks/tive/positions \
     "Battery": { "Percentage": 85.0, "IsCharging": false }
   }'
 
+# Query current position for a tracker
+curl http://localhost:8080/trackers/TRACKER-001/position
+
 # Inspect messages in Kafka
-open http://localhost:8090
+xdg-open http://localhost:8090
 ```
 
 ## Configuration
@@ -82,6 +105,27 @@ open http://localhost:8090
 | `REDIS_PORT` | `6379` | Redis port |
 | `TIVE_CLIENT_ID` | - | Client ID provided by Tive |
 | `TIVE_CLIENT_SECRET` | - | Secret provided by Tive |
+| `TIVE_POSITION_STATE_CONSUMER_GROUP` | `tive-position-state` | Kafka consumer group for latest-position projection |
+| `TIVE_ALERT_PERSISTENCE_CONSUMER_GROUP` | `tive-alert-persistence` | Kafka consumer group used to persist alerts into PostgreSQL |
+| `TIVE_ALERT_PERSISTENCE_ENABLED` | `true` | Enables/disables the PostgreSQL alert persistence flow |
+| `DB_HOST` | `localhost` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `tive` | PostgreSQL database name |
+| `DB_USER` | `tive` | PostgreSQL username |
+| `DB_PASSWORD` | `tive` | PostgreSQL password |
+
+## Deploy to Google Cloud
+
+1. Create Artifact Registry repository and Cloud SQL PostgreSQL instance.
+2. Store `DB_PASSWORD` and `TIVE_CLIENT_SECRET` in Secret Manager.
+3. Update substitutions in `cloudbuild.yaml`.
+4. Run Cloud Build to build, push, and deploy to Cloud Run.
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+The Cloud Run deployment uses profile `gcp` (`application-gcp.yml`) and connects to Cloud SQL via the Cloud SQL JDBC Socket Factory.
 
 ## Available metrics
 

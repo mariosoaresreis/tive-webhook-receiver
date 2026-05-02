@@ -2,6 +2,24 @@ spring:
   application:
     name: tive-webhook-receiver
 
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:tive}}
+    username: ${DB_USER:tive}
+    password: ${DB_PASSWORD:tive}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:
@@ -27,7 +45,7 @@ spring:
       timeout: 2000ms
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 # Tive secrets (injected via environment variables in production)
 tive:
@@ -40,6 +58,9 @@ tive:
     idempotency-ttl-seconds: 86400
   position-state:
     consumer-group: ${TIVE_POSITION_STATE_CONSUMER_GROUP:tive-position-state}
+  alert-persistence:
+    enabled: ${TIVE_ALERT_PERSISTENCE_ENABLED:true}
+    consumer-group: ${TIVE_ALERT_PERSISTENCE_CONSUMER_GROUP:tive-alert-persistence}
 
 kafka:
   topics:

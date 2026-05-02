@@ -2,15 +2,20 @@ package com.shiptrack.tive.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiptrack.tive.model.TiveWebhookPayload;
+import com.shiptrack.tive.service.IdempotencyService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,8 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EmbeddedKafka(partitions = 1, topics = {"tive.positions", "tive.alerts", "tive.dlq"})
 @TestPropertySource(properties = {
     "spring.kafka.producer.bootstrap-servers=${spring.embedded.kafka.brokers}",
-    // Redis not available in CI — uses mock
-    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration",
+    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration",
+    "tive.alert-persistence.enabled=false",
     "tive.webhook.client-id=test-client",
     "tive.webhook.client-secret=test-secret"
 })
@@ -31,6 +36,14 @@ class TiveWebhookControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private IdempotencyService idempotencyService;
+
+    @BeforeEach
+    void setup() {
+        when(idempotencyService.isNew(anyString())).thenReturn(true);
+    }
 
     @Test
     void shouldReturn200ForValidPositionWebhook() throws Exception {
@@ -58,6 +71,7 @@ class TiveWebhookControllerTest {
     void shouldReturn200EvenForDuplicateEvent() throws Exception {
         TiveWebhookPayload payload = buildPayload("TRACKER-002", -22.9068, -43.1729);
         String body = objectMapper.writeValueAsString(payload);
+        when(idempotencyService.isNew(anyString())).thenReturn(true, false);
 
         // First request
         mockMvc.perform(post("/webhooks/tive/positions")

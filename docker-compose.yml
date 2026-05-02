@@ -36,6 +36,17 @@ services:
       - "6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: tive
+      POSTGRES_USER: tive
+      POSTGRES_PASSWORD: tive
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   # Interface visual para inspecionar tópicos Kafka
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -50,12 +61,21 @@ services:
   # A aplicação Spring Boot
   tive-receiver:
     build: .
-    depends_on: [kafka, redis]
+    depends_on: [kafka, redis, postgres]
     ports:
       - "8080:8080"
     environment:
       KAFKA_BROKERS: kafka:9092
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: tive
+      DB_USER: tive
+      DB_PASSWORD: tive
       TIVE_CLIENT_ID: my-client-id
       TIVE_CLIENT_SECRET: my-client-secret
+
+volumes:
+  postgres-data:
+

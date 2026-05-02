@@ -1,0 +1,53 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      [
+        "build",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/tive-webhook-receiver:$COMMIT_SHA",
+        "."
+      ]
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/tive-webhook-receiver:$COMMIT_SHA"
+      ]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "tive-webhook-receiver",
+        "--image",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/tive-webhook-receiver:$COMMIT_SHA",
+        "--region",
+        "${_REGION}",
+        "--platform",
+        "managed",
+        "--allow-unauthenticated",
+        "--add-cloudsql-instances",
+        "${_CLOUD_SQL_INSTANCE}",
+        "--set-env-vars",
+        "SPRING_PROFILES_ACTIVE=gcp,KAFKA_BROKERS=${_KAFKA_BROKERS},DB_NAME=${_DB_NAME},DB_USER=${_DB_USER},CLOUD_SQL_INSTANCE=${_CLOUD_SQL_INSTANCE},TIVE_CLIENT_ID=${_TIVE_CLIENT_ID}",
+        "--set-secrets",
+        "DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest,TIVE_CLIENT_SECRET=${_TIVE_CLIENT_SECRET_SECRET}:latest"
+      ]
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/tive-webhook-receiver:$COMMIT_SHA
+
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: tive-repo
+  _CLOUD_SQL_INSTANCE: project-id:us-central1:tive-postgres
+  _DB_NAME: tive
+  _DB_USER: tive
+  _DB_PASSWORD_SECRET: db-password
+  _TIVE_CLIENT_ID: my-client-id
+  _TIVE_CLIENT_SECRET_SECRET: tive-client-secret
+  _KAFKA_BROKERS: pkc-xxxxx.us-central1.gcp.confluent.cloud:9092
+

@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: gcp
+
+  datasource:
+    # Cloud SQL socket mode for Cloud Run with --add-cloudsql-instances
+    url: jdbc:postgresql:///${DB_NAME:tive}?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${CLOUD_SQL_INSTANCE}
+    username: ${DB_USER:tive}
+    password: ${DB_PASSWORD}
+
+server:
+  port: ${PORT:8080}
+
