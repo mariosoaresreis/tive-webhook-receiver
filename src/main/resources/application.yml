@@ -56,6 +56,32 @@ tive:
     client-secret: ${TIVE_CLIENT_SECRET:my-client-secret}
     # Idempotency key TTL in Redis (seconds)
     idempotency-ttl-seconds: 86400
+  recovery:
+    enabled: ${TIVE_RECOVERY_ENABLED:false}
+    fixed-delay: ${TIVE_RECOVERY_FIXED_DELAY:PT5M}
+    initial-delay: ${TIVE_RECOVERY_INITIAL_DELAY:PT1M}
+    lookback: ${TIVE_RECOVERY_LOOKBACK:PT15M}
+    safety-overlap: ${TIVE_RECOVERY_SAFETY_OVERLAP:PT2M}
+    lock-ttl: ${TIVE_RECOVERY_LOCK_TTL:PT4M}
+    base-url: ${TIVE_RECOVERY_BASE_URL:}
+    client-id: ${TIVE_RECOVERY_CLIENT_ID:${TIVE_CLIENT_ID:my-client-id}}
+    client-secret: ${TIVE_RECOVERY_CLIENT_SECRET:${TIVE_CLIENT_SECRET:my-client-secret}}
+    from-parameter: ${TIVE_RECOVERY_FROM_PARAMETER:from}
+    to-parameter: ${TIVE_RECOVERY_TO_PARAMETER:to}
+    page-parameter: ${TIVE_RECOVERY_PAGE_PARAMETER:page}
+    page-size-parameter: ${TIVE_RECOVERY_PAGE_SIZE_PARAMETER:pageSize}
+    page-size: ${TIVE_RECOVERY_PAGE_SIZE:500}
+    max-pages: ${TIVE_RECOVERY_MAX_PAGES:20}
+    positions:
+      enabled: ${TIVE_RECOVERY_POSITIONS_ENABLED:true}
+      # Configure the exact Tive REST API path used to recover missed position events.
+      path: ${TIVE_RECOVERY_POSITIONS_PATH:}
+      response-items-field: ${TIVE_RECOVERY_POSITIONS_RESPONSE_ITEMS_FIELD:}
+    alerts:
+      enabled: ${TIVE_RECOVERY_ALERTS_ENABLED:true}
+      # Configure the exact Tive REST API path used to recover missed alert events.
+      path: ${TIVE_RECOVERY_ALERTS_PATH:}
+      response-items-field: ${TIVE_RECOVERY_ALERTS_RESPONSE_ITEMS_FIELD:}
   position-state:
     consumer-group: ${TIVE_POSITION_STATE_CONSUMER_GROUP:tive-position-state}
   alert-persistence:

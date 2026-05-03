@@ -4,6 +4,7 @@ import com.shiptrack.tive.kafka.TiveEventPublisher;
 import com.shiptrack.tive.model.TiveAlertPayload;
 import com.shiptrack.tive.model.TiveWebhookPayload;
 import com.shiptrack.tive.service.IdempotencyService;
+import com.shiptrack.tive.service.TiveEventKeys;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -83,12 +84,12 @@ public class TiveWebhookController {
     @PostMapping("/positions")
     public ResponseEntity<Void> receivePosition(@RequestBody TiveWebhookPayload payload) {
         return webhookLatency.record(() -> {
-            String idempotencyKey = buildIdempotencyKey(payload.getEntityName(), payload.getEntryTimeEpoch());
+            String idempotencyKey = TiveEventKeys.positionKey(payload);
 
             if (!idempotencyService.isNew(idempotencyKey)) {
                 // Duplicate: respond 200 anyway (Tive doesn't need to know)
                 duplicatesIgnored.increment();
-                return ResponseEntity.ok().<Void>build();
+                return ResponseEntity.ok().build();
             }
 
             log.info("Position received. tracker={} lat={} lon={}",
@@ -100,7 +101,7 @@ public class TiveWebhookController {
             receivedPositions.increment();
 
             // Immediate 200 OK — Kafka publishes asynchronously
-            return ResponseEntity.ok().<Void>build();
+            return ResponseEntity.ok().build();
         });
     }
 
@@ -113,11 +114,11 @@ public class TiveWebhookController {
     @PostMapping("/alerts")
     public ResponseEntity<Void> receiveAlert(@RequestBody TiveAlertPayload payload) {
         return webhookLatency.record(() -> {
-            String idempotencyKey = buildAlertIdempotencyKey(payload);
+            String idempotencyKey = TiveEventKeys.alertKey(payload);
 
             if (!idempotencyService.isNew(idempotencyKey)) {
                 duplicatesIgnored.increment();
-                return ResponseEntity.ok().<Void>build();
+                return ResponseEntity.ok().build();
             }
 
             log.info("Alert received. tracker={} type={} value={}",
@@ -128,7 +129,7 @@ public class TiveWebhookController {
             publisher.publishAlert(payload);
             receivedAlerts.increment();
 
-            return ResponseEntity.ok().<Void>build();
+            return ResponseEntity.ok().build();
         });
     }
 
@@ -139,14 +140,4 @@ public class TiveWebhookController {
         return ResponseEntity.ok("OK");
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
-    private String buildIdempotencyKey(String trackerId, Long epochMs) {
-        return trackerId + "::" + (epochMs != null ? epochMs : System.currentTimeMillis());
-    }
-
-    private String buildAlertIdempotencyKey(TiveAlertPayload payload) {
-        String alertId = payload.getAlert() != null ? payload.getAlert().getAlertId() : payload.getAlertDate();
-        return payload.getEntityName() + "::alert::" + alertId;
-    }
 }

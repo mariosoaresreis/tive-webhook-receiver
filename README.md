@@ -23,6 +23,14 @@ TiveEventPublisher               <- publishes to Kafka asynchronously
      |- tive.alerts     (shock, temp...) key = trackerId
      \- tive.dlq        (failures)
 
+TiveRecoveryService (@Scheduled) <- polls the Tive REST API for missed events when enabled
+     |
+     v
+TiveRecoveryCursorService        <- stores recovery cursors + distributed run lock in Redis
+     |
+     v
+TiveEventPublisher               <- republishes recovered events into the same Kafka topics
+
 tive.alerts (consumer group: tive-alert-persistence)
      |
      v
@@ -50,6 +58,12 @@ Tive has a short delivery timeout. If the endpoint takes too long, it re-deliver
 ### Idempotency
 
 Tive attempts to re-deliver failed webhooks. `IdempotencyService` uses `SET NX EX` in Redis (atomic operation) to ensure each event is processed exactly once, even when duplicates are received.
+
+### Recovery fallback for missed events
+
+When webhook delivery fails persistently, the application can poll the Tive REST API on a schedule and republish any missing position/alert events to Kafka. The recovery job is disabled by default and only starts after you configure the REST API base URL/path(s) and set `TIVE_RECOVERY_ENABLED=true`.
+
+The recovery flow stores a per-stream cursor in Redis and intentionally re-reads a small overlap window on every execution. The same Redis idempotency keys used by webhook processing are applied again during recovery, so the overlap closes timing gaps without creating duplicate Kafka messages.
 
 ## Endpoints
 
@@ -105,6 +119,15 @@ xdg-open http://localhost:8090
 | `REDIS_PORT` | `6379` | Redis port |
 | `TIVE_CLIENT_ID` | - | Client ID provided by Tive |
 | `TIVE_CLIENT_SECRET` | - | Secret provided by Tive |
+| `TIVE_RECOVERY_ENABLED` | `false` | Enables the scheduled Tive REST API recovery job |
+| `TIVE_RECOVERY_BASE_URL` | - | Base URL for the Tive REST API used for recovery |
+| `TIVE_RECOVERY_POSITIONS_PATH` | - | Relative or absolute path for position recovery polling |
+| `TIVE_RECOVERY_ALERTS_PATH` | - | Relative or absolute path for alert recovery polling |
+| `TIVE_RECOVERY_FIXED_DELAY` | `PT5M` | Delay between scheduled recovery runs |
+| `TIVE_RECOVERY_INITIAL_DELAY` | `PT1M` | Initial delay before the first recovery run |
+| `TIVE_RECOVERY_LOOKBACK` | `PT15M` | Initial historical window used when there is no stored cursor |
+| `TIVE_RECOVERY_SAFETY_OVERLAP` | `PT2M` | Overlap added when resuming from the last successful cursor |
+| `TIVE_RECOVERY_PAGE_SIZE` | `500` | Maximum page size requested from the Tive REST API |
 | `TIVE_POSITION_STATE_CONSUMER_GROUP` | `tive-position-state` | Kafka consumer group for latest-position projection |
 | `TIVE_ALERT_PERSISTENCE_CONSUMER_GROUP` | `tive-alert-persistence` | Kafka consumer group used to persist alerts into PostgreSQL |
 | `TIVE_ALERT_PERSISTENCE_ENABLED` | `true` | Enables/disables the PostgreSQL alert persistence flow |
@@ -137,6 +160,10 @@ The Cloud Run deployment uses profile `gcp` (`application-gcp.yml`) and connects
 | `tive.webhook.published{topic=...}` | Events published to Kafka |
 | `tive.webhook.publish.failures` | Publish failures (sent to DLQ) |
 | `tive.webhook.latency` | Webhook processing latency |
+| `tive.recovery.republished{stream=...}` | Recovered events republished to Kafka |
+| `tive.recovery.duplicates` | Recovered events ignored because they were already processed |
+| `tive.recovery.failures{stream=...}` | Failed REST recovery polling cycles |
+| `tive.recovery.poll.duration` | Duration of one recovery polling cycle |
 
 ## Tests
 
