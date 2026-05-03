@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
   pull_request:
-    branches: [main]
+
+permissions:
+  contents: read
+  checks: write
 
 jobs:
   build-and-test:
@@ -21,14 +23,26 @@ jobs:
           cache: maven
 
       - name: Build and run tests
-        run: mvn -B verify
+        run: mvn -B -ntp clean verify
 
-      - name: Build Docker image
-        run: docker build -t tive-webhook-receiver:${{ github.sha }} .
-
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
+      - name: Upload Surefire/Failsafe reports
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: target/surefire-reports/
+          name: test-reports
+          path: |
+            target/surefire-reports/**
+            target/failsafe-reports/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish test report summary
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Maven Tests
+          path: |
+            target/surefire-reports/*.xml
+            target/failsafe-reports/*.xml
+          reporter: java-junit
+          fail-on-error: false
