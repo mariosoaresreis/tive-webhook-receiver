@@ -39,7 +39,6 @@ locals {
     TIVE_RECOVERY_POSITIONS_PATH          = var.tive_recovery_positions_path
     TIVE_RECOVERY_ALERTS_PATH             = var.tive_recovery_alerts_path
     TIVE_ALERT_PERSISTENCE_ENABLED        = "true"
-    TIVE_POSITION_STATE_CONSUMER_GROUP    = "tive-position-state"
     TIVE_ALERT_PERSISTENCE_CONSUMER_GROUP = "tive-alert-persistence"
   })
 
@@ -65,4 +64,3 @@ locals {
 
   webhook_recovery_secret = trimspace(var.tive_recovery_client_secret) == "" ? var.tive_client_secret : var.tive_recovery_client_secret
 }
-

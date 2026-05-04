@@ -38,17 +38,6 @@ TiveAlertsPersistenceConsumer    <- persists alerts for querying/audit
      |
      v
 PostgreSQL (Cloud SQL in GCP)
-
-tive.positions (consumer group: tive-position-state)
-     |
-     v
-TivePositionsProjectionConsumer  <- projects latest position per tracker
-     |
-     v
-Redis latest state               <- key tive:tracker:position:{trackerId}
-     |
-     v
-TrackerPositionController        <- GET /trackers/{id}/position
 ```
 
 ### Why respond 200 before Kafka confirms?
@@ -72,7 +61,6 @@ The recovery flow stores a per-stream cursor in Redis and intentionally re-reads
 | POST | `/webhooks/tive/positions` | GPS and sensor data |
 | POST | `/webhooks/tive/alerts` | Alerts (shock, temperature, geofence) |
 | GET  | `/webhooks/tive/health` | Health check for Tive to validate the endpoint |
-| GET  | `/trackers/{trackerId}/position` | Returns the latest projected position from Redis |
 | GET  | `/actuator/prometheus` | Metrics for Prometheus/Grafana |
 
 ## Authentication
@@ -103,9 +91,6 @@ curl -X POST http://localhost:8080/webhooks/tive/positions \
     "Battery": { "Percentage": 85.0, "IsCharging": false }
   }'
 
-# Query current position for a tracker
-curl http://localhost:8080/trackers/TRACKER-001/position
-
 # Inspect messages in Kafka
 xdg-open http://localhost:8090
 ```
@@ -128,7 +113,6 @@ xdg-open http://localhost:8090
 | `TIVE_RECOVERY_LOOKBACK` | `PT15M` | Initial historical window used when there is no stored cursor |
 | `TIVE_RECOVERY_SAFETY_OVERLAP` | `PT2M` | Overlap added when resuming from the last successful cursor |
 | `TIVE_RECOVERY_PAGE_SIZE` | `500` | Maximum page size requested from the Tive REST API |
-| `TIVE_POSITION_STATE_CONSUMER_GROUP` | `tive-position-state` | Kafka consumer group for latest-position projection |
 | `TIVE_ALERT_PERSISTENCE_CONSUMER_GROUP` | `tive-alert-persistence` | Kafka consumer group used to persist alerts into PostgreSQL |
 | `TIVE_ALERT_PERSISTENCE_ENABLED` | `true` | Enables/disables the PostgreSQL alert persistence flow |
 | `DB_HOST` | `localhost` | PostgreSQL host |

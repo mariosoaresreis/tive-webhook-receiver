@@ -82,8 +82,6 @@ tive:
       # Configure the exact Tive REST API path used to recover missed alert events.
       path: ${TIVE_RECOVERY_ALERTS_PATH:}
       response-items-field: ${TIVE_RECOVERY_ALERTS_RESPONSE_ITEMS_FIELD:}
-  position-state:
-    consumer-group: ${TIVE_POSITION_STATE_CONSUMER_GROUP:tive-position-state}
   alert-persistence:
     enabled: ${TIVE_ALERT_PERSISTENCE_ENABLED:true}
     consumer-group: ${TIVE_ALERT_PERSISTENCE_CONSUMER_GROUP:tive-alert-persistence}
