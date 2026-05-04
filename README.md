@@ -150,6 +150,20 @@ gcloud builds submit --config cloudbuild.yaml
 
 The Cloud Run deployment uses profile `gcp` (`application-gcp.yml`) and connects to Cloud SQL via the Cloud SQL JDBC Socket Factory.
 
+## Deploy with Terraform to GKE (webhook + query)
+
+For Kubernetes deployment in GCP (same project, separate namespaces, shared Kafka), use:
+
+- `terraform/README.md`
+- `terraform/DEPLOY_PLAN.md`
+
+This Terraform stack deploys:
+
+- `tive-webhook-receiver` in namespace `tive-webhook`
+- `tive-query` in namespace `tive-query`
+
+Both services are configured with the same Kafka connection variables.
+
 ## Available metrics
 
 | Metric | Description |

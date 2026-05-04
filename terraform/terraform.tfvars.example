@@ -1,0 +1,43 @@
+project_id           = "my-gcp-project"
+region               = "us-central1"
+gke_cluster_name     = "tive-cluster"
+gke_cluster_location = "us-central1"
+
+webhook_namespace = "tive-webhook"
+query_namespace   = "tive-query"
+
+webhook_image = "us-central1-docker.pkg.dev/my-gcp-project/tive-repo/tive-webhook-receiver:latest"
+query_image   = "us-central1-docker.pkg.dev/my-gcp-project/tive-repo/tive-query:latest"
+
+# Both services read/write against the same Kafka cluster.
+kafka_bootstrap_servers = "pkc-xxxxx.us-central1.gcp.confluent.cloud:9092"
+kafka_security_protocol = "SASL_SSL"
+kafka_sasl_mechanism    = "PLAIN"
+kafka_sasl_username     = "replace-me"
+kafka_sasl_password     = "replace-me"
+
+db_host           = "10.10.0.12"
+db_port           = 5432
+db_name           = "tive"
+webhook_db_user   = "tive"
+query_db_user     = "tive_reader"
+db_password       = "replace-me"
+cloud_sql_instance = "my-gcp-project:us-central1:tive-postgres"
+
+redis_host = "10.10.0.22"
+redis_port = 6379
+
+tive_client_id            = "replace-me"
+tive_client_secret        = "replace-me"
+tive_recovery_enabled     = false
+tive_recovery_base_url    = ""
+tive_recovery_positions_path = ""
+tive_recovery_alerts_path = ""
+tive_recovery_client_secret = ""
+
+query_api_key = "replace-me"
+
+# Optional Workload Identity annotations (leave empty to skip).
+webhook_gsa_email = ""
+query_gsa_email   = ""
+
